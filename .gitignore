@@ -29,3 +29,16 @@ wheels/
 *.swp
 *.swo
 .DS_Store
+
+# Ignore video files
+*.avi
+*.mp4
+*.mkv
+*.flv
+*.mov
+
+# Ignore image files
+*.png
+*.jpg
+*.jpeg
+*.gif
