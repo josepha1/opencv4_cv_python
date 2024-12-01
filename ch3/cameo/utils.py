@@ -2,12 +2,15 @@ import cv2
 import numpy as np
 import scipy.interpolate 
 
-def createCurveFunc(points):
+def createCurveFunc(points: list) -> callable:
     """
-    Return a function derived from control points.
+    Create a function from a list of points suitable for interpolation.
 
     Args:
-        points (numpy.ndarray): A Numpy array of (x,y) pairs.
+        points (list): List of tuples (x, y) representing points.
+        
+    Returns:
+        callable: An interpolated function derived from the points.
     """
     if points is None:
         return None 
@@ -24,15 +27,16 @@ def createCurveFunc(points):
         
     return scipy.interpolate.interp1d(xs, ys, kind, bounds_error = False)
 
-def createLookupArray(func, length:int = 256):
+def createLookupArray(func: callable, length:int = 256) -> np.ndarray:
     """
-    Return a lookup for whole-number inputs to a function
-    
-    The lookup values are clamped to [0, length - 1]
+    Create a lookup array for a function over the range of integer inputs.
 
     Args:
-        func (_type_): _description_
-        length (int, optional): _description_. Defaults to 256.
+        func (callable): Function to be applied.
+        length (int): Length of the lookup array. Defaults to 256
+
+    Returns:
+        np.ndarray: Array containing the lookup values
     """
     if func is None:
         return None 
@@ -44,29 +48,32 @@ def createLookupArray(func, length:int = 256):
         i += 1
     return lookupArray
 
-def applyLookupArray(lookupArray, src, dst):
+def applyLookupArray(lookupArray: np.ndarray, src: np.ndarray, dst: np.ndarray) -> None:
     """
-    Map a source to a destination using a lookup.
+    Apply a lookup array to a source image to create a destination image.
 
     Args:
-        lookupArray (_type_): _description_
-        src (_type_): _description_
-        dst (_type_): _description_
+        lookupArray (np.ndarray): The lookup array.
+        src (np.ndarray): The source image.
+        dst (np.ndarray): The destination image, modified in place.
     """
     if lookupArray is None:
         return 
     dst[:] = lookupArray[src]
 
-def createCompositeFunc(func0, func1):
+def createCompositeFunc(func0: callable, func1: callable) -> callable:
     """
-    Return a composite of two functions
+    Combine two functions into a single composite function.
 
     Args:
-        func0 (_type_): _description_
-        func1 (_type_): _description_
+        func0 (callable): First function.
+        func1 (callable): Second function.
+
+    Returns:
+        callable: A composite function that applies func1 and then func0.
     """
     if func0 is None:
-        return func1 
+        return func1
     if func1 is None:
-        return func0 
+        return func0
     return lambda x: func0(func1(x))

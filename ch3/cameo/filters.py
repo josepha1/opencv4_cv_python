@@ -15,140 +15,106 @@ import cv2
 import numpy as np
 import utils 
 
-class VConvolutionFilter(object):
+class VConvolutionFilter:
     """
-    
+    A generic convolution filter class using a kernel for image filtering.
 
-    Args:
-        object (_type_): _description_
+    Attributes:
+        kernel (np.ndarray): The convolution kernel.
     """
-    def __init__(self, kernel):
-        self._kernel = kernel 
-    def apply(self, src, dst):
+    def __init__(self, kernel: np.ndarray):
+        self._kernel = kernel
+
+    def apply(self, src: np.ndarray, dst: np.ndarray) -> None:
         """
-        Apply the filter with a BGR or gray source/destination.
+        Apply the convolution filter to an image.
 
         Args:
-            src (_type_): _description_
-            dst (_type_): _description_
+            src (np.ndarray): The source image.
+            dst (np.ndarray): The destination image.
         """
         cv2.filter2D(src, -1, self._kernel, dst)
-        
+
 class SharpenFilter(VConvolutionFilter):
     """
-    A sharpen filter with a 1-pixel radius.
-
-    Args:
-        VConvolutionFilter (_type_): _description_
+    A sharpen filter using a specific sharpening kernel.
     """
     def __init__(self):
-        kernel = np.array([[-1, -1, -1],
-                              [-1, 9, -1],
-                              [-1, -1, -1]])
-        VConvolutionFilter.__init__(self, kernel)
-        
+        super().__init__(kernel=np.array([[-1, -1, -1],
+                                          [-1, 9, -1],
+                                          [-1, -1, -1]]))
+
 class FindEdgesFilter(VConvolutionFilter):
     """
-    An edge-finding filter with a 1-pixel radius.
-
-    Args:
-        VConvolutionFilter (_type_): _description_
+    An edge detection filter using a Laplacian-like kernel.
     """
     def __init__(self):
-        kernel = np.array([[-1, -1, -1],
-                           [-1, 8, -1],
-                           [-1, -1, -1]])
-        VConvolutionFilter.__init__(self, kernel)
-        
+        super().__init__(kernel=np.array([[-1, -1, -1],
+                                          [-1, 8, -1],
+                                          [-1, -1, -1]]))
+
 class BlurFilter(VConvolutionFilter):
     """
-    A blur filter with a 2-pixel radius.
-
-    Args:
-        VConvolutionFilter (_type_): _description_
+    A simple blur filter using an averaging kernel.
     """
     def __init__(self):
-        kernel = np.array([[0.04, 0.04, 0.04, 0.04, 0.04],
-                           [0.04, 0.04, 0.04, 0.04, 0.04],
-                           [0.04, 0.04, 0.04, 0.04, 0.04],
-                           [0.04, 0.04, 0.04, 0.04, 0.04],
-                           [0.04, 0.04, 0.04, 0.04, 0.04]])
-        VConvolutionFilter.__init__(self, kernel)
-        
+        super().__init__(kernel=np.full((5, 5), 0.04))
+
 class EmbossFilter(VConvolutionFilter):
     """
-    An emboss filter with a 1-pixel radius
-
-    Args:
-        VConvolutionFilter (_type_): _description_
+    An emboss filter that simulates an embossed look by using a gradient kernel.
     """
     def __init__(self):
-        kernel = np.array([[-2, -1, 0],
-                           [-1, 1, 1],
-                           [0, 1, 2]])
-        VConvolutionFilter.__init__(self, kernel)
-        
-class BGRFuncFilter(object):
-    """
-    A filter that applies different functions to each of BGR.
+        super().__init__(kernel=np.array([[-2, -1, 0],
+                                          [-1, 1, 1],
+                                          [0, 1, 2]]))
 
-    Args:
-        object (_type_): _description_
+class BGRFuncFilter:
     """
-    def __init__(self, vFunc = None, bFunc = None, gFunc = None, rFunc = None, dtype = np.uint8):
+    A filter that applies different functions to each channel of a BGR image.
+
+    Attributes:
+        bFunc, gFunc, rFunc (callable): Functions to be applied to the B, G, R channels respectively.
+    """
+    def __init__(self, vFunc=None, bFunc=None, gFunc=None, rFunc=None, dtype=np.uint8):
         length = np.iinfo(dtype).max + 1
-        self._bLookupArray = utils.createLookupArray(
-            utils.createCompositeFunc(bFunc, vFunc), length)
-        self._gLookupArray = utils.createLookupArray(
-            utils.createCompositeFunc(gFunc, vFunc), length)
-        self._rLookupArray = utils.createLookupArray(
-            utils.createCompositeFunc(rFunc, vFunc), length)
-        
-    def apply(self, src, dst):
+        self._bLookupArray = utils.createLookupArray(utils.createCompositeFunc(bFunc, vFunc), length)
+        self._gLookupArray = utils.createLookupArray(utils.createCompositeFunc(gFunc, vFunc), length)
+        self._rLookupArray = utils.createLookupArray(utils.createCompositeFunc(rFunc, vFunc), length)
+
+    def apply(self, src: np.ndarray, dst: np.ndarray) -> None:
         """
-        Apply the filter with a BGR source/destination.
+        Apply the configured functions to the BGR channels of the source image and store in dst.
 
         Args:
-            src (_type_): _description_
-            dst (_type_): _description_
+            src (np.ndarray): The source BGR image.
+            dst (np.ndarray): The destination BGR image, modified in place.
         """
         b, g, r = cv2.split(src)
         utils.applyLookupArray(self._bLookupArray, b, b)
         utils.applyLookupArray(self._gLookupArray, g, g)
         utils.applyLookupArray(self._rLookupArray, r, r)
         cv2.merge([b, g, r], dst)
-        
+
 class BGRCurveFilter(BGRFuncFilter):
     """
-    A filter that applies different curves to each of BGR.
-
-    Args:
-        BGRFuncFilter (_type_): _description_
+    A filter that applies different curves to each channel of a BGR image based on specified control points.
     """
-    def __init__(self, vPoints = None, bPoints = None,
-                 gPoints = None, rPoints = None, dtype = np.uint8):
-        BGRFuncFilter.__init__(self,
-                               utils.createCurveFunc(vPoints),
-                               utils.createCurveFunc(bPoints),
-                               utils.createCurveFunc(gPoints),
-                               utils.createCurveFunc(rPoints), dtype)
-        
+    def __init__(self, vPoints=None, bPoints=None, gPoints=None, rPoints=None, dtype=np.uint8):
+        super().__init__(vFunc=utils.createCurveFunc(vPoints),
+                         bFunc=utils.createCurveFunc(bPoints),
+                         gFunc=utils.createCurveFunc(gPoints),
+                         rFunc=utils.createCurveFunc(rPoints), dtype=dtype)
+
 class BGRPortraCurveFilter(BGRCurveFilter):
     """
-    A filter that applies Portra-like curves to BGR.
-
-    Args:
-        BGRCurveFilter (_type_): _description_
+    A filter that applies specific curves to each channel of a BGR image to emulate the look of Portra film.
     """
-    def __init__(self, dtype = np.uint8):
-        BGRCurveFilter.__init__(
-            self,
-            vPoints = [(0, 0), (23, 20), (157, 173), (255, 255)],
-            bPoints = [(0, 0), (41, 46), (231, 228), (255, 255)],
-            gPoints = [(0, 0), (52, 47), (189, 196), (255, 255)],
-            rPoints = [(0, 0), (69, 69), (213, 218), (255, 255)],
-            dtype = dtype
-        )
+    def __init__(self, dtype=np.uint8):
+        super().__init__(vPoints=[(0, 0), (23, 20), (157, 173), (255, 255)],
+                         bPoints=[(0, 0), (41, 46), (231, 228), (255, 255)],
+                         gPoints=[(0, 0), (52, 47), (189, 196), (255, 255)],
+                         rPoints=[(0, 0), (69, 69), (213, 218), (255, 255)], dtype=dtype)
 
 def strokeEdges(src: np.ndarray, dst: np.ndarray, blurKsize: int = 7, edgeKsize: int = 5) -> None:
     """
@@ -156,37 +122,25 @@ def strokeEdges(src: np.ndarray, dst: np.ndarray, blurKsize: int = 7, edgeKsize:
     This function first blurs the image to reduce noise and then applies a Laplacian filter to detect edges.
 
     Args:
-        src (numpy.ndarray): The source image on which edge detections is to be applied.
-        dst (numpy.ndarray): The destination image where the result will be stored.
+        src (np.ndarray): The source image on which edge detections is to be applied.
+        dst (np.ndarray): The destination image where the result will be stored.
         blurKsize (int, optional): The size of the kernel used for median blurring.  If it's less than 3,
                                    blurring is skipped to avoid errors. Defaults to 7.
-        edgeKsize (int, optional): The aperature size used for the Laplacian operator. Defaults to 5.
-    """# If the blur kernel size is greater than or equal to 3, apply median blurring to reduce noise.
+        edgeKsize (int, optional): The aperture size used for the Laplacian operator. Defaults to 5.
+    """
     if blurKsize >= 3:
-        # Median blurring to reduce noise and details in the image
         blurredSrc = cv2.medianBlur(src, blurKsize)
-        # Convert the blurred image to grayscale for edge detection
         graySrc = cv2.cvtColor(blurredSrc, cv2.COLOR_BGR2GRAY)
     else:
-        # Convert the original image to grayscale if blurring is not applied.
         graySrc = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
-        
-    # Apply the Laplacian operator with the specified kernel size to detect edges.  
-    cv2.Laplacian(graySrc, cv2.CV_8U, graySrc, ksize = edgeKsize)
     
-    # Calculate the inverse of the normalized grayscale image to highlight edges
+    cv2.Laplacian(graySrc, cv2.CV_8U, graySrc, ksize=edgeKsize)
+    
     normalizedInverseAlpha = (1.0 / 255) * (255 - graySrc)
     
-    # Split the source image into its individual color channels
     channels = cv2.split(src)
     
-    # Multiply each channel by the normalized inverse alpha to enhance edges
     for channel in channels:
         channel[:] = channel * normalizedInverseAlpha
         
-    # Merge the processed channels back into the destination image.  
     cv2.merge(channels, dst)
-    
-    """
-    Note: We allow kernel sizes to be specified as arguments for `strokeEdges`
-    """
